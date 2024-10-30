@@ -1,3 +1,5 @@
+from tabulate import tabulate
+
 class Livro:
     def __init__(self, titulo, autor, ano_publicacao, status='disponível'):
         self.__titulo = titulo

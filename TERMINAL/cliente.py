@@ -1,3 +1,5 @@
+from tabulate import tabulate
+
 class Cliente:
     def __init__(self, nome, endereco, telefone):
         self.__nome = nome

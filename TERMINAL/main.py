@@ -3,7 +3,6 @@ from cliente import Cliente
 from emprestimo import Emprestimo
 from banco_de_dados import BancoDeDados
 
-
 def menu():
     print("Sistema de Gerenciamento de Biblioteca")
     print("1. Cadastrar Livro")

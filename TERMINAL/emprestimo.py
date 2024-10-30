@@ -1,4 +1,5 @@
 from datetime import datetime
+from tabulate import tabulate
 
 class Emprestimo:
     def __init__(self, livro, cliente):

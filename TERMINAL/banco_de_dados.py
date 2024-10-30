@@ -1,4 +1,5 @@
 import mysql.connector
+from tabulate import tabulate
 
 class BancoDeDados:
     def __init__(self):
@@ -25,32 +26,26 @@ class BancoDeDados:
         print("Cliente cadastrado com sucesso!")
 
     def registrar_emprestimo(self, titulo, nome_cliente):
-        # Consultar o id do livro pelo título
         sql = "SELECT id FROM livro WHERE titulo = %s"
         self.cursor.execute(sql, (titulo,))
         livro = self.cursor.fetchone()
 
-        # Certificar que o resultado foi consumido
         if self.cursor._have_unread_result():
             self.cursor.fetchall()
 
-        # Consultar o id do cliente pelo nome
         sql = "SELECT id FROM cliente WHERE nome = %s"
         self.cursor.execute(sql, (nome_cliente,))
         cliente = self.cursor.fetchone()
 
-        # Certificar que o resultado foi consumido
         if self.cursor._have_unread_result():
             self.cursor.fetchall()
 
         if livro and cliente:
-            # Inserir o empréstimo na tabela emprestimo
             sql = "INSERT INTO emprestimo (livro_id, cliente_id, data_emprestimo) VALUES (%s, %s, NOW())"
             val = (livro[0], cliente[0])
             self.cursor.execute(sql, val)
             self.conn.commit()
 
-            # Atualizar o status do livro para 'emprestado'
             sql = "UPDATE livro SET status = 'emprestado' WHERE id = %s"
             self.cursor.execute(sql, (livro[0],))
             self.conn.commit()
@@ -61,13 +56,15 @@ class BancoDeDados:
 
     def consultar_livros(self):
         self.cursor.execute("SELECT * FROM livro")
-        for livro in self.cursor.fetchall():
-            print(livro)
+        livros = self.cursor.fetchall()
+        colunas = ["ID", "Título", "Autor", "Ano de Publicação", "Status"]
+        print(tabulate(livros, headers=colunas, tablefmt="grid"))
 
     def consultar_clientes(self):
         self.cursor.execute("SELECT * FROM cliente")
-        for cliente in self.cursor.fetchall():
-            print(cliente)
+        clientes = self.cursor.fetchall()
+        colunas = ["ID", "Nome", "Endereço", "Telefone"]
+        print(tabulate(clientes, headers=colunas, tablefmt="grid"))
 
     def consultar_emprestimos(self):
         self.cursor.execute("""
@@ -76,8 +73,9 @@ class BancoDeDados:
             JOIN livro l ON e.livro_id = l.id 
             JOIN cliente c ON e.cliente_id = c.id
         """)
-        for emprestimo in self.cursor.fetchall():
-            print(emprestimo)
+        emprestimos = self.cursor.fetchall()
+        colunas = ["Data de Empréstimo", "Livro", "Cliente"]
+        print(tabulate(emprestimos, headers=colunas, tablefmt="grid"))
 
     def __del__(self):
         self.cursor.close()
