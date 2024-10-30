@@ -1,72 +1,84 @@
 import mysql.connector
 
 class BancoDeDados:
-    def __init__(self, host, usuario, senha, banco):
-        self.conexao = mysql.connector.connect(
+    def __init__(self):
+        self.conn = mysql.connector.connect(
             host='localhost',
             user='root',
             password='Admin123*',
             database='biblioteca'
         )
-        self.cursor = self.conexao.cursor()
+        self.cursor = self.conn.cursor()
 
-    def cadastrar_cliente(self, nome, endereco, telefone):
+    def inserir_livro(self, livro):
+        sql = "INSERT INTO livro (titulo, autor, ano_publicacao, status) VALUES (%s, %s, %s, %s)"
+        val = (livro.get_titulo(), livro.get_autor(), livro.get_ano_publicacao(), livro.get_status())
+        self.cursor.execute(sql, val)
+        self.conn.commit()
+        print("Livro cadastrado com sucesso!")
+
+    def inserir_cliente(self, cliente):
         sql = "INSERT INTO cliente (nome, endereco, telefone) VALUES (%s, %s, %s)"
-        self.cursor.execute(sql, (nome, endereco, telefone))
-        self.conexao.commit()
+        val = (cliente.get_nome(), cliente.get_endereco(), cliente.get_telefone())
+        self.cursor.execute(sql, val)
+        self.conn.commit()
+        print("Cliente cadastrado com sucesso!")
 
-    def cadastrar_livro(self, titulo, autor, ano_publicacao):
-        sql = "INSERT INTO livro (titulo, autor, ano_publicacao) VALUES (%s, %s, %s)"
-        self.cursor.execute(sql, (titulo, autor, ano_publicacao))
-        self.conexao.commit()
+    def registrar_emprestimo(self, titulo, nome_cliente):
+        # Consultar o id do livro pelo título
+        sql = "SELECT id FROM livro WHERE titulo = %s"
+        self.cursor.execute(sql, (titulo,))
+        livro = self.cursor.fetchone()
 
-    def cadastrar_emprestimo(self, livro_id, cliente_id, data_emprestimo):
-        sql = "INSERT INTO emprestimo (livro_id, cliente_id, data_emprestimo) VALUES (%s, %s, %s)"
-        self.cursor.execute(sql, (livro_id, cliente_id, data_emprestimo))
-        self.conexao.commit()
+        # Certificar que o resultado foi consumido
+        if self.cursor._have_unread_result():
+            self.cursor.fetchall()
 
-    def consultar_clientes(self):
-        self.cursor.execute("SELECT * FROM cliente")
-        return self.cursor.fetchall()
+        # Consultar o id do cliente pelo nome
+        sql = "SELECT id FROM cliente WHERE nome = %s"
+        self.cursor.execute(sql, (nome_cliente,))
+        cliente = self.cursor.fetchone()
+
+        # Certificar que o resultado foi consumido
+        if self.cursor._have_unread_result():
+            self.cursor.fetchall()
+
+        if livro and cliente:
+            # Inserir o empréstimo na tabela emprestimo
+            sql = "INSERT INTO emprestimo (livro_id, cliente_id, data_emprestimo) VALUES (%s, %s, NOW())"
+            val = (livro[0], cliente[0])
+            self.cursor.execute(sql, val)
+            self.conn.commit()
+
+            # Atualizar o status do livro para 'emprestado'
+            sql = "UPDATE livro SET status = 'emprestado' WHERE id = %s"
+            self.cursor.execute(sql, (livro[0],))
+            self.conn.commit()
+
+            print("Empréstimo registrado com sucesso!")
+        else:
+            print("Livro ou cliente não encontrado.")
 
     def consultar_livros(self):
         self.cursor.execute("SELECT * FROM livro")
-        return self.cursor.fetchall()
+        for livro in self.cursor.fetchall():
+            print(livro)
+
+    def consultar_clientes(self):
+        self.cursor.execute("SELECT * FROM cliente")
+        for cliente in self.cursor.fetchall():
+            print(cliente)
 
     def consultar_emprestimos(self):
-        self.cursor.execute("SELECT * FROM emprestimo")
-        return self.cursor.fetchall()
+        self.cursor.execute("""
+            SELECT e.data_emprestimo, l.titulo, c.nome 
+            FROM emprestimo e 
+            JOIN livro l ON e.livro_id = l.id 
+            JOIN cliente c ON e.cliente_id = c.id
+        """)
+        for emprestimo in self.cursor.fetchall():
+            print(emprestimo)
 
-    def alterar_cliente(self, cliente_id, nome, endereco, telefone):
-        sql = "UPDATE cliente SET nome = %s, endereco = %s, telefone = %s WHERE id = %s"
-        self.cursor.execute(sql, (nome, endereco, telefone, cliente_id))
-        self.conexao.commit()
-
-    def alterar_livro(self, livro_id, titulo, autor, ano_publicacao):
-        sql = "UPDATE livro SET titulo = %s, autor = %s, ano_publicacao = %s WHERE id = %s"
-        self.cursor.execute(sql, (titulo, autor, ano_publicacao, livro_id))
-        self.conexao.commit()
-
-    def deletar_cliente(self, cliente_id):
-        sql = "DELETE FROM cliente WHERE id = %s"
-        self.cursor.execute(sql, (cliente_id,))
-        self.conexao.commit()
-
-    def deletar_livro(self, livro_id):
-        sql = "DELETE FROM livro WHERE id = %s"
-        self.cursor.execute(sql, (livro_id,))
-        self.conexao.commit()
-
-    def consultar_emprestimos_com_clientes(self):
-        sql = """
-        SELECT c.nome AS nome_cliente, l.titulo AS titulo_livro
-        FROM emprestimo e
-        INNER JOIN cliente c ON e.cliente_id = c.id
-        INNER JOIN livro l ON e.livro_id = l.id;
-        """
-        self.cursor.execute(sql)
-        return self.cursor.fetchall()
-
-    def close(self):
+    def __del__(self):
         self.cursor.close()
-        self.conexao.close()
+        self.conn.close()
